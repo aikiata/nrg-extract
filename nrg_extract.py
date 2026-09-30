@@ -3,13 +3,15 @@
 
 Bố cục NRG: audio nằm tuần tự từ offset 0, mỗi sector 2352 byte = 588 frame stereo
 16-bit @ 44.1 kHz. Bảng TOC nằm trong chunk CUEX gần cuối file, mỗi bản ghi 8 byte:
-[sector 3 byte big-endian][0x00][0x01][track][index][0x00]
+[sector 4 byte big-endian][0x01][track][index][0x00]
   - index 0x01 = INDEX 01 (điểm bắt đầu track)
-  - track 0xAA  = lead-out
+  - track 0xAA  = bản ghi lead-out, sector thật nằm ở 4 byte kế tiếp
   - track 1 có sector sentinel 0xFFFFFF -> dùng 0
-Tên track nằm ở chunk AFNM ngay trước END!.
+Tên track nằm ở chunk AFNM, phần tử cuối là "VOLM" (volume) - lọc theo đuôi .wav.
 """
 import os
+import re
+import shutil
 import struct
 import subprocess
 import sys
@@ -77,8 +79,17 @@ def wav_header(nbytes):
 
 
 def main():
+    if len(sys.argv) not in (3, 4):
+        sys.exit(f'usage: {sys.argv[0]} <file.nrg> <outdir> [flac|wav]  (mặc định: flac)')
     src, outdir = sys.argv[1], sys.argv[2]
-    kind = sys.argv[3] if len(sys.argv) > 3 else 'flac'
+    kind = sys.argv[3] if len(sys.argv) == 4 else 'flac'
+    if kind not in ('flac', 'wav'):
+        sys.exit(f'định dạng không hợp lệ: {kind} (chỉ nhận flac hoặc wav)')
+    if kind == 'flac' and not any(
+            os.access(p, os.X_OK) for p in (shutil.which('ffmpeg'),) if p):
+        sys.exit('cần ffmpeg cho bản flac; dùng định dạng wav nếu chưa cài ffmpeg')
+    if not os.path.isfile(src):
+        sys.exit(f'không thấy file: {src}')
     os.makedirs(outdir, exist_ok=True)
     names, starts, leadout = parse(src)
     ends = starts[1:] + [leadout]
@@ -91,7 +102,6 @@ def main():
             f.seek(s * SECTOR)
             pcm = f.read((e - s) * SECTOR)
             label = names[i] if i < len(names) else f'Track {i + 1:02d}'
-            import re
             label = re.sub(r'^\s*\d+\.\s*', '', label)
             base = f'{i + 1:02d}. {label.replace(".wav", "").strip()}'
             ext = '.wav' if kind == 'wav' else '.flac'
