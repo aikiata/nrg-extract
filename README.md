@@ -75,6 +75,22 @@ for i in range(len(starts) - 1):
 Lưu ý khi verify: `ffmpeg` với `-f s16le` vẫn ghi thêm 44 byte header RIFF, nên
 phải so từ offset 44 trở đi.
 
+## Skill cho Hermes
+
+`hermes-skill/nrg-extract/SKILL.md` là skill để agent khác tự trích nhạc khi được
+giao file `.nrg`. Nó chứa phần kinh nghiệm mà script không thể hiện: tool nào
+fail với lý do gì, cách phân biệt CD-DA với VCD, cách verify bit-exact (kèm bẫy
+44 byte header RIFF của ffmpeg), và các quirk của chunk `CUEX`.
+
+Cài cho Hermes:
+
+```bash
+mkdir -p ~/.hermes/skills/nrg-extract
+cp hermes-skill/nrg-extract/SKILL.md ~/.hermes/skills/nrg-extract/
+```
+
+Skill tự load khi user hỏi về `.nrg`, rip CD, hoặc chuyển `.nrg` sang FLAC.
+
 ## Giới hạn
 
 - Chỉ hỗ trợ CD-DA. Đĩa VCD/SVCD có Mode 2 Form 1/2 và header ISO 9660, script
